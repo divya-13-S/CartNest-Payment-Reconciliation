@@ -427,10 +427,7 @@ export default function App() {
                     <div style={{ textAlign: 'center', fontSize: 11, color: '#74776F', marginBottom: 2, fontWeight: 600 }}>Exceptions</div>
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart
-                        data={[
-                          ...filteredReconChart.filter(d => d.name !== 'Matched'),
-                          { name: 'Orphan Cap.', count: data.orphanCount ?? 0, color: '#B89A6B' },
-                        ]}
+                        data={filteredReconChart.filter(d => d.name !== 'Matched')}
                         margin={{ top: 20, right: 16, left: 0, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#E6E0D5" />
@@ -438,10 +435,7 @@ export default function App() {
                         <YAxis tick={{ fill: '#74776F', fontSize: 11 }} width={36} allowDecimals={false} />
                         <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="count" name="Order Count" radius={[4, 4, 0, 0]} minPointSize={4}>
-                          {[
-                            ...filteredReconChart.filter(d => d.name !== 'Matched'),
-                            { name: 'Orphan Cap.', count: data.orphanCount ?? 0, color: '#B89A6B' },
-                          ].map((e, i) => <Cell key={i} fill={e.color} />)}
+                          {filteredReconChart.filter(d => d.name !== 'Matched').map((e, i) => <Cell key={i} fill={e.color} />)}
                           <LabelList dataKey="count" position="top" style={{ fill: '#30352F', fontSize: 12, fontWeight: 700 }} />
                         </Bar>
                       </BarChart>
