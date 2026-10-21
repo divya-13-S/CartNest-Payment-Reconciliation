@@ -1,6 +1,6 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import './styles.css';
@@ -391,36 +391,117 @@ export default function App() {
 
             {/* Charts */}
             <div className="chart-grid">
+
+              {/* ── Fix 1: Split bar chart — Matched vs Exceptions ───────── */}
               <div className="chart-card">
                 <div className="chart-title">Reconciliation Status — Order Count</div>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={filteredReconChart} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E6E0D5" />
-                    <XAxis dataKey="name" tick={{ fill: '#74776F', fontSize: 11 }} />
-                    <YAxis tick={{ fill: '#74776F', fontSize: 11 }} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Bar dataKey="count" name="Order Count" radius={[4, 4, 0, 0]}>
-                      {filteredReconChart.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
+
+                  {/* Left panel — Matched only */}
+                  <div style={{ flex: '0 0 38%' }}>
+                    <div style={{ textAlign: 'center', fontSize: 11, color: '#74776F', marginBottom: 2, fontWeight: 600 }}>Matched</div>
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart
+                        data={[filteredReconChart.find(d => d.name === 'Matched') ?? { name: 'Matched', count: 0, color: '#71866A' }]}
+                        margin={{ top: 20, right: 8, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E6E0D5" />
+                        <XAxis dataKey="name" tick={{ fill: '#74776F', fontSize: 11 }} />
+                        <YAxis tick={{ fill: '#74776F', fontSize: 11 }} width={48} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="count" name="Order Count" radius={[4, 4, 0, 0]}>
+                          {[filteredReconChart.find(d => d.name === 'Matched') ?? {}].map((e, i) => (
+                            <Cell key={i} fill={e.color || '#71866A'} />
+                          ))}
+                          <LabelList dataKey="count" position="top" style={{ fill: '#30352F', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Divider */}
+                  <div style={{ width: 1, background: '#E6E0D5', alignSelf: 'stretch', margin: '0 4px' }} />
+
+                  {/* Right panel — Exception categories */}
+                  <div style={{ flex: '1 1 0%' }}>
+                    <div style={{ textAlign: 'center', fontSize: 11, color: '#74776F', marginBottom: 2, fontWeight: 600 }}>Exceptions</div>
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart
+                        data={[
+                          ...filteredReconChart.filter(d => d.name !== 'Matched'),
+                          { name: 'Orphan Cap.', count: data.orphanCount ?? 0, color: '#B89A6B' },
+                        ]}
+                        margin={{ top: 20, right: 16, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E6E0D5" />
+                        <XAxis dataKey="name" tick={{ fill: '#74776F', fontSize: 10 }} />
+                        <YAxis tick={{ fill: '#74776F', fontSize: 11 }} width={36} allowDecimals={false} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="count" name="Order Count" radius={[4, 4, 0, 0]} minPointSize={4}>
+                          {[
+                            ...filteredReconChart.filter(d => d.name !== 'Matched'),
+                            { name: 'Orphan Cap.', count: data.orphanCount ?? 0, color: '#B89A6B' },
+                          ].map((e, i) => <Cell key={i} fill={e.color} />)}
+                          <LabelList dataKey="count" position="top" style={{ fill: '#30352F', fontSize: 12, fontWeight: 700 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
+
+              {/* ── Fix 2: Doughnut — remove arc labels, clean legend ─────── */}
               <div className="chart-card">
                 <div className="chart-title">Order Value by Status</div>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={filteredReconChart.filter(d => d.value > 0)} dataKey="value" nameKey="name"
-                      cx="50%" cy="48%" outerRadius={100} innerRadius={50}
+                    <Pie
+                      data={filteredReconChart.filter(d => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="44%"
+                      outerRadius={100}
+                      innerRadius={52}
                       paddingAngle={2}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={false}>
+                    >
                       {filteredReconChart.filter(d => d.value > 0).map((e, i) => <Cell key={i} fill={e.color} />)}
                     </Pie>
-                    <Tooltip content={<ChartTooltip />} />
-                    <Legend iconType="circle" iconSize={10} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0];
+                        const total = filteredReconChart.filter(x => x.value > 0).reduce((s, x) => s + x.value, 0);
+                        const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0';
+                        return (
+                          <div style={{
+                            background: '#fff', border: '1px solid #E6E0D5', borderRadius: 8,
+                            padding: '10px 14px', fontSize: 12, color: '#30352F',
+                            boxShadow: '0 2px 10px rgba(48,53,47,.09)',
+                          }}>
+                            <p style={{ fontWeight: 600, marginBottom: 4, color: '#30352F' }}>{d.name}</p>
+                            <p style={{ margin: '2px 0', color: d.payload.color }}>{fmtINR(d.value)}</p>
+                            <p style={{ margin: '2px 0', color: '#74776F' }}>{pct}% of total</p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={10}
+                      verticalAlign="bottom"
+                      align="center"
+                      wrapperStyle={{ paddingTop: 12, fontSize: 12, lineHeight: '22px' }}
+                      formatter={(value, entry) => (
+                        <span style={{ color: '#30352F', marginRight: 12 }}>
+                          {value} — {fmtINR(entry.payload.value)}
+                        </span>
+                      )}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
+
             </div>
 
             {/* Detail table */}
@@ -572,16 +653,23 @@ export default function App() {
             <div className="chart-grid cols-1 section-gap">
               <div className="chart-card">
                 <div className="chart-title">Expected vs Actual Settlement by Batch</div>
-                <ResponsiveContainer width="100%" height={320}>
+                {/* Fix 3: Increased bottom margin + legend moved below x-axis labels */}
+                <ResponsiveContainer width="100%" height={380}>
                   <BarChart data={data.settlementChartData}
-                    margin={{ top: 5, right: 24, left: 24, bottom: 45 }}>
+                    margin={{ top: 5, right: 24, left: 24, bottom: 70 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E6E0D5" />
                     <XAxis dataKey="batch" tick={{ fill: '#74776F', fontSize: 9 }}
                       angle={-45} textAnchor="end" />
                     <YAxis tick={{ fill: '#74776F', fontSize: 10 }}
                       tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
                     <Tooltip content={<ChartTooltip />} />
-                    <Legend iconType="square" iconSize={10} />
+                    <Legend
+                      iconType="square"
+                      iconSize={10}
+                      verticalAlign="bottom"
+                      align="center"
+                      wrapperStyle={{ paddingTop: 14, fontSize: 12 }}
+                    />
                     <Bar dataKey="expected" name="Expected"      fill="#6F9990" radius={[3,3,0,0]} />
                     <Bar dataKey="actual"   name="Actual Credit" fill="#71866A" radius={[3,3,0,0]} />
                   </BarChart>
